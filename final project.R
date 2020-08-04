@@ -4,17 +4,6 @@ library(dplyr)
 #remove obviously unuseful variables
 file = select(raw_data,-c(X,ID, Photo, Flag, Club.Logo, Loaned.From))
 
-file$LS = as.character(file$LS)
-file = subset(file, file$LS != "")
-temp = as.vector(strsplit(file$LS, split = "+"))
-original = rep(0, length(temp))
-after = rep(0, length(temp))
-for(i in 1 : length(temp)){
-  str = temp[[i]]
-  original[i] = as.numeric(paste(str[1], str[2], sep = ""))
-  after[i] = original[i] + as.numeric(str[4])
-}
-
 #convert columns LS to RB to numeric values
 # take the values with plus sign and without plus sign
 position_raw = file[, 23:48]
@@ -68,10 +57,12 @@ if(anyNA(file$Release.Clause)){
 }
 
 #convert weight from factor to numeric
+#blank is missing data
 file = subset(file, file$Weight != "")
 file$Weight = substr(file$Weight, 1, 3)
 
 #convert height to numeric
+#blank is missing data
 file = subset(file, file$Height != "")
 file$Height = as.numeric(gsub("\'", ".", file$Height)) * 0.3048 ########Note: in meters
 
