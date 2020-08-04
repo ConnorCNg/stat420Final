@@ -66,3 +66,19 @@ file$Weight = substr(file$Weight, 1, 3)
 file = subset(file, file$Height != "")
 file$Height = as.numeric(gsub("\'", ".", file$Height)) * 0.3048 ########Note: in meters
 
+#check if columns are their expected types and remove NA
+
+data.frame(colnames(file))
+numeric_index = c(4, 2, 5, 7, 8, 9, 11, 12, 13, 21:83)
+factor_index = c(1, 3, 6, 10, 14:20)
+for(i in numeric_index){
+  print(class(file[, i]))
+  file[,i] = na.omit(file[,i])
+}
+
+for(i in factor_index){
+  print(class(file[,i]))
+  file = subset(file[, i], file[, i]!= "")
+}
+
+file$Jersey.Number = as.factor(file$Jersey.Number)
