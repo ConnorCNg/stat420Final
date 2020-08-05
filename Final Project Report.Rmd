@@ -1,0 +1,213 @@
+---
+title: 'FIFA 19 Player Data Analysis'
+author: "STAT 420, Summer 2020, Shuo Yan, Chutong Xiao, Connor Ng"
+date: ''
+output:
+  html_document: 
+    theme: readable
+    toc: yes  
+  pdf_document: default
+urlcolor: cyan
+---
+
+***
+
+```{r setup, echo = FALSE, message = FALSE, warning = FALSE}
+options(scipen = 1, digits = 4, width = 80)
+library(knitr)
+opts_chunk$set(cache = TRUE, autodep = TRUE)
+```
+
+```{r}
+birthday = 19980327
+set.seed(birthday)
+```
+
+## Introduction
+
+Everyone of us can list our favorite football players; however, we as amateur audiences seldom know why some football players are so famous and their transfer values are so high. Hopefully, through this study we will be able to understand the standard of player evaluation. Are certain traits in football players more beneficial than others? Is pure physical ability enough to be thought to be as good as Lionel Messi or Cristiano Ronaldo or is there something more?
+
+In this study, we will use the `FIFA_19.csv` dataset to explore the relationship between the overall ratings and other attributes of the players. We aim the find the best model that help determine the rating of a palyer based on the existing data.
+
+The variables in the dataset are:
+
+- `ID` 
+- `Name` - Fullname of the football player
+- `Age` - in years
+- `Photo` - Link to the profile photo 
+- `Nationality` 
+- `Flag` - Link to the national flag photo 
+- `Overall` - The overall rating, integer
+- `Potential` - The potential rating, integer
+- `Club`
+- `Club.logo` - Link to the Logo image
+
+- `Value` - in M EUR
+- `Wage` - in K EUR
+- `Release.Cause` - M EUR
+
+- `Special` - 
+- `Preferred.Foot` - right or left
+- `International.Reputation` - 
+- `Weak.Foot` - 
+- `Skill.Moves` -
+- `Work.Rate` - 
+- `Body.Type` - Lean, normal or stocky
+- `Real.Face` - Whether the player has a real face (Yes or No)
+- `Position` 
+- `Jersey.Number` - Integer that identify the position
+- `Joined` - The year when the player joined FIFA
+- `Contract.Valid.Until` - Contract end-dates in years
+- `Height` - in feet
+- `Weight` - in lbs
+- `LS` - Left Striker
+- `ST` - Striker
+- `RS` - Right Striker
+- `LW` - Left Wing
+- `RW` - Right Wing
+- `LF` - Left Forward
+- `CF` - Centre Forward
+- `RF` - Right Forward
+- `LAM` - Left Attacking Midfielder
+- `CAM` - Central Attacking Midfielder
+- `RAM` - Right Attacking Midfielder
+- `LM` - Left Midfielder
+- `RM` - Right Midfielder
+- `LDM` - Left Defensive Midfielder
+- `CDM` - Central Defensive Midfielder
+- `RDM` - Right Defensive Midfielder
+- `LB` - Left Back (##to delete## notice: we do not have right back(RB) in the dataset)
+- `LCM` - Left Centre Midfielder
+- `CM` - Central Midfielder
+- `RCM` - Right Centre Midfielder
+- `LWB` - Left Wing Back
+- `RWB` - Right Wing Back
+
+- Attacking: `Crossing`, `Finishing`, `HeadingAccuracy`, `ShortPassing`, `Volleys`
+
+- Skill: `Dribbling`, `Curve`, `FKAccuracy`, `LongPassing`, `BallControl`
+
+- Movement: `Acceleration`, `SprintSpeed`, `Agility`, `Reactions`, `Balance`
+
+- Power: `ShotPower`, `Jumping`, `Stamina`, `Strength`, `LongShots`
+
+- Mentality: `Aggression`, `Interceptions`, `Positioning`, `Vision`, `Penalties`, `Composure`                 
+- Defending: `Marking`, `StandingTackle`, `SlidingTackle`
+
+- GoalKeeping: `GKDiving`, `GKHandling`, `GKKicking`, `GKPositioning`,`GKReflexes`
+
+
+
+
+
+
+## Methods
+
+### Data Preprocessing
+
+```{r evaluate = FALSE}
+raw_data = read.csv("FIFA_19.csv")
+
+library(dplyr)
+#remove obviously unuseful variables
+file = select(raw_data,-c(X,ID, Photo, Flag, Club.Logo, Loaned.From))
+
+#convert columns LS to RB to numeric values
+# take the values with plus sign and without plus sign
+position_raw = file[, 23:48]
+original = matrix(0, nrow(position_raw), ncol(position_raw))
+after = matrix(0, nrow(position_raw), ncol(position_raw)) #######THIS IS LS TO RB WITH PLUS SIGN!!!
+for(i in 1:nrow(position_raw)){
+  for(j in 1:ncol(position_raw)){
+    str = as.character(position_raw[i, j])
+    if(str == ""){
+      original[i, j] = NA
+      after[i, j] = NA
+    } else{
+      str = strsplit(str, split = "+")[[1]]
+      original[i,j] = as.numeric(paste(str[1], str[2], sep = ""))
+      after[i,j] = original[i] + as.numeric(str[4])
+    }
+  }
+}
+
+file[, 23:48] = original
+file = na.omit(file)
+
+#convert Value into numeric
+file$Value = as.character(file$Value)
+#remove euro sign and million
+temp = substring(strsplit(file$Value, split = "M"), 2) ##########NOTE: this value is in Million
+file$Value = as.numeric(temp)
+#remove NA
+anyNA(file$Value)
+if(anyNA(file$Value)){
+  file = na.omit(file)
+}
+
+#convert wage into numeric
+file$Wage = as.character(file$Wage)
+#remove euto sign and K 
+temp = substring(strsplit(file$Wage, split = "K"), 2) ###########NOTE: this value is in K
+file$Wage = as.numeric(temp)
+#remove NA
+anyNA(file$Wage)
+
+
+#convert release clause into numeric
+file$Release.Clause = as.character(file$Release.Clause)
+#remove euro sign and M
+temp = substring(strsplit(file$Release.Clause, split = "M"), 2) #########NOTE: this value is in M
+file$Release.Clause = as.numeric(temp)
+#remove NA
+if(anyNA(file$Release.Clause)){
+  file = na.omit(file)
+}
+
+#convert weight from factor to numeric
+#blank is missing data
+file = subset(file, class(file$Weight) != as.factor(""))
+file$Weight = substr(file$Weight, 1, 3)
+
+#convert height to numeric
+#blank is missing data
+file = subset(file, class(file$Height) != as.factor(""))
+file$Height = as.numeric(gsub("\'", ".", file$Height)) * 0.3048 ########Note: in meters
+
+#convert weight to numeric
+file$Weight = as.numeric(file$Weight)
+
+#check if columns are their expected types and remove NA
+
+data.frame(colnames(file))
+numeric_index = c(4, 2, 5, 7, 8, 9, 11, 12, 13, 21:83)
+factor_index = c(1, 3, 6, 10, 14:20)
+for(i in numeric_index){
+  print(class(file[, i]))
+  file[,i] = na.omit(file[,i])
+}
+
+for(i in factor_index){
+  print(class(file[,i]))
+  file = subset(file, class(file[, i])!= as.factor(""))
+}
+
+#change jersey number to categorical
+file$Jersey.Number = as.factor(file$Jersey.Number)
+
+file = na.omit(file)
+```
+
+
+### Check for Collinearity of Numeric parameters
+```{r}
+selection_model = lm(Overall ~ Age + Height + Weight + Crossing + Finishing + HeadingAccuracy + ShortPassing + Volleys + Dribbling + Curve + FKAccuracy + LongPassing + BallControl + Acceleration + SprintSpeed + Agility + Reactions + Balance + ShotPower + Jumping + Stamina + Strength + LongShots + Aggression + Interceptions + Positioning + Vision + Penalties + Composure +  Marking + StandingTackle + SlidingTackle + GKDiving + GKHandling + GKKicking + GKPositioning + GKReflexes, data = file)
+
+library(faraway)
+
+vif(selection_model)
+```
+To ensure that the final model doesn't have collinearity issues, we would select parameters with vif less than 5. Therefore we select parameters Age, Height, Weight, Crossing, HeadingAccuracy, ShortPassing, Volleys, Curve, FKAccuracy, LongPassing, Agility, Reactions, Balance, ShotPower, Jumping, Stamina, Strength, Aggression, Vision, Penalties, Composure, GKDiving, GKHandling, GKKicking, GKPositioning, GKReflexes.
+
+
+
