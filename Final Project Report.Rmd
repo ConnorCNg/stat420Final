@@ -1,4 +1,4 @@
----
+0p-ouh---
 title: 'FIFA 19 Player Data Analysis'
 author: "STAT 420, Summer 2020, Shuo Yan, Chutong Xiao, Connor Ng"
 date: ''
@@ -262,7 +262,8 @@ temp_model_1 = lm(Overall ~ Age + Height + Weight + Weak.Foot + Skill.Moves + Cr
 model1 = step(temp_model_1, k = log(length(resid(temp_model_1))), trace = 0)
 ```
 
-##### Model Diagnostic
+### Model Diagnostic
+#### Model 1
 
 - test for model assumptions
 
