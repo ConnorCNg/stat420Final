@@ -105,8 +105,8 @@ The variables in the dataset are:
 
 ### Data Preprocessing
 
-```{r evaluate = FALSE}
-raw_data = read.csv("FIFA_19.csv")
+```{r evaluate = FALSE, warning = FALSE}
+raw_data = read.csv("/Users/shuoyan/Documents/stat420/finalProject/fifa18-all-player-statistics-master/2019/data.csv")
 
 library(dplyr)
 #remove obviously unuseful variables
@@ -183,12 +183,12 @@ data.frame(colnames(file))
 numeric_index = c(4, 2, 5, 7, 8, 9, 11, 12, 13, 21:83)
 factor_index = c(1, 3, 6, 10, 14:20)
 for(i in numeric_index){
-  print(class(file[, i]))
+  #print(class(file[, i]))
   file[,i] = na.omit(file[,i])
 }
 
 for(i in factor_index){
-  print(class(file[,i]))
+  #print(class(file[,i]))
   file = subset(file, class(file[, i])!= as.factor(""))
 }
 
@@ -199,15 +199,43 @@ file = na.omit(file)
 ```
 
 
-### Check for Collinearity of Numeric parameters
+### Data Analysis
+#### Check for Collinearity of Numeric parameters
+
+- collinearity of physical scorting and Overall Score
+
+Because a full model crashes rstudio, we first analyze some very important parameters - the scoring of player's physical attributes.
+
 ```{r}
-selection_model = lm(Overall ~ Age + Height + Weight + Crossing + Finishing + HeadingAccuracy + ShortPassing + Volleys + Dribbling + Curve + FKAccuracy + LongPassing + BallControl + Acceleration + SprintSpeed + Agility + Reactions + Balance + ShotPower + Jumping + Stamina + Strength + LongShots + Aggression + Interceptions + Positioning + Vision + Penalties + Composure +  Marking + StandingTackle + SlidingTackle + GKDiving + GKHandling + GKKicking + GKPositioning + GKReflexes, data = file)
+selection_model = lm(Overall ~ Age + Height + Weight + Weak.Foot + Skill.Moves + Crossing + Finishing + HeadingAccuracy + ShortPassing + Volleys + Dribbling + Curve + FKAccuracy + LongPassing + BallControl + Acceleration + SprintSpeed + Agility + Reactions + Balance + ShotPower + Jumping + Stamina + Strength + LongShots + Aggression + Interceptions + Positioning + Vision + Penalties + Composure +  Marking + StandingTackle + SlidingTackle + GKDiving + GKHandling + GKKicking + GKPositioning + GKReflexes, data = file)
 
 library(faraway)
 
 vif(selection_model)
 ```
-To ensure that the final model doesn't have collinearity issues, we would select parameters with vif less than 5. Therefore we select parameters Age, Height, Weight, Crossing, HeadingAccuracy, ShortPassing, Volleys, Curve, FKAccuracy, LongPassing, Agility, Reactions, Balance, ShotPower, Jumping, Stamina, Strength, Aggression, Vision, Penalties, Composure, GKDiving, GKHandling, GKKicking, GKPositioning, GKReflexes.
+To ensure that the final model doesn't have collinearity issues, we would select parameters with vif less than 5. Therefore we select parameters Age, Height, Weight, Weak.Foot, Skill.Moves, Crossing, HeadingAccuracy, ShortPassing, Volleys, Curve, FKAccuracy, LongPassing, Agility, Reactions, Balance, ShotPower, Jumping, Stamina, Strength, Aggression, Vision, Penalties, Composure, GKDiving, GKHandling, GKKicking, GKPositioning, GKReflexes.
 
+- correlation between Overall score and position scores
 
+```{r}
+selection_model = lm(Overall ~ ., data = file[, c(4, 23 : 48)])
+vif(selection_model)
+```
 
+We see that all of the parameters have large vifs. To avoid collinearity issues, we would use none of them.
+
+Therefore, we would use the above parameters and select remaining categorical parameters to fit models.
+
+#### Check for Influential Points
+
+```{r}
+check_influential_model = lm(Overall ~ Age + Height + Weight + Weak.Foot + Skill.Moves + Crossing + HeadingAccuracy + ShortPassing + Volleys + Curve + FKAccuracy + LongPassing + Agility + Reactions + Balance + ShotPower + Jumping + Stamina + Strength  + Aggression + Vision + Penalties + Composure + GKDiving + GKHandling + GKKicking + GKPositioning + GKReflexes, data = file)
+
+which(cooks.distance(check_influential_model) > 4 / length(cooks.distance(check_influential_model)))
+```
+
+We wouldn't consider removing any influential points because there are many of them. Also consider that talents vary, it's unreasonable to remove them.
+
+We have finished analyzing data and variables. Now we can fit models!
+
+### Model Fitting
