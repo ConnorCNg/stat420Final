@@ -25,9 +25,9 @@ set.seed(birthday)
 
 ## Introduction
 
-Everyone of us can list our favorite football players; however, we as amateur audiences seldom know why some football players are so famous and their transfer values are so high. Hopefully, through this study we will be able to understand the standard of player evaluation. Are certain traits in football players more beneficial than others? Is pure physical ability enough to be thought to be as good as Lionel Messi or Cristiano Ronaldo or is there something more?
+Everyone of us can list our favorite football players; however, we as amateur audiences seldom know why some football players are so famous and why their transfer values are so high. Hopefully, through this study we will be able to understand the standard of player evaluation. Are certain traits in football players more beneficial than others? Is pure physical ability enough to be thought to be as good as Lionel Messi or Cristiano Ronaldo or is there something more?
 
-In this study, we will use the `FIFA_19.csv` dataset to explore the relationship between the overall ratings and other attributes of the players. We aim the find the best model that help determine the rating of a palyer based on the existing data.
+In this study, we will use the `FIFA_19.csv` dataset to explore the relationship between the overall ratings and other attributes of the players. We aim the find the best model that will help us to determine the rating of a palyer based on existing data.
 
 The variables in the dataset are:
 
@@ -210,12 +210,12 @@ library(faraway)
 
 vif(selection_model)
 ```
-To ensure that the final model doesn't have collinearity issues, we would select parameters with vif less than 5. Therefore we select parameters Age, Height, Weight, Weak.Foot, Skill.Moves, Crossing, HeadingAccuracy, ShortPassing, Volleys, Curve, FKAccuracy, LongPassing, Agility, Reactions, Balance, ShotPower, Jumping, Stamina, Strength, Aggression, Vision, Penalties, Composure, GKDiving, GKHandling, GKKicking, GKPositioning, GKReflexes.
+To ensure that the final model doesn't have collinearity issues, we would select parameters with vif less than 5. Therefore we select parameters Age, Height, Weight, Weak.Foot, Skill.Moves, Crossing, HeadingAccuracy, ShortPassing, Volleys, Curve, FKAccuracy, LongPassing, Reactions, Balance, ShotPower, Jumping, Stamina, Strength, Aggression, Vision, Penalties, Composure, GKDiving, GKHandling, GKKicking, GKPositioning, GKReflexes.
 
 - correlation between Overall score and position scores
 
 ```{r}
-selection_model = lm(Overall ~ ., data = file[, c(4, 23 : 48)])
+selection_model = lm(Overall ~ ., data = file[, c(3, 17:42)])
 vif(selection_model)
 ```
 
@@ -260,6 +260,8 @@ Because there are way too many parameters, we first try BIC for model selection
 temp_model_1 = lm(Overall ~ Age + Height + Weight + Weak.Foot + Skill.Moves + Crossing + HeadingAccuracy + ShortPassing + Volleys + Curve + FKAccuracy + LongPassing + Agility + Reactions + Balance + ShotPower + Jumping + Stamina + Strength  + Aggression + Vision + Penalties + Composure + GKDiving + GKHandling + GKKicking + GKPositioning + GKReflexes + Preferred.Foot + Work.Rate + Body.Type + Position, data = test_data)
 
 model1 = step(temp_model_1, k = log(length(resid(temp_model_1))), trace = 0)
+
+names(coef(model1))
 ```
 
 ### Model Diagnostic
@@ -275,6 +277,7 @@ abline(h = 0, col = "orange", lwd = 2)
 qqnorm(resid(model1), col = "grey")
 qqline(resid(model1), col = "dodgerblue", lwd = 2)
 ```
+
 ```{r}
 library("lmtest")
 bptest(model1)
@@ -284,7 +287,7 @@ shapiro.test(resid(model1))
 
 As we can see from the Fitted vs. Residuals Plot, the data points clearly have a pattern. It is verified by the BP test where p-value is extremely small. From Normal Q-Q Plot, we see that data points are not obviously off. The Shapiro-Wilk test result is also not significantly small. We wouldn't consider rejecting the normality assumption.
 
-- test for roocv-rmse
+- test for loocv-rmse
 ```{r}
 calc_loocv_rmse(model1)
 ```
@@ -294,4 +297,122 @@ calc_loocv_rmse(model1)
 summary(model1)$adj.r.squared
 ```
 
-- BIC
+The LOOCV-RMSE value is very small, which is good. The adjusted $R^2$ value is also reasonably good (high). However, the breach of the non-constant variance assumption must be addressed.
+
+#### Model 2
+```{r}
+temp_model_2 = lm(Overall ~ Age + Height + Weight + Weak.Foot + Skill.Moves + Crossing + HeadingAccuracy + ShortPassing + Volleys + Curve + FKAccuracy + LongPassing + Agility + Reactions + Balance + ShotPower + Jumping + Stamina + Strength  + Aggression + Vision + Penalties + Composure + GKDiving + GKHandling + GKKicking + GKPositioning + GKReflexes + Preferred.Foot + Work.Rate + Body.Type + Position, data = train_data)
+
+model2 = step(temp_model_2, trace = 0)
+
+names(coef(model2))
+```
+
+A second model (above) was created using backwards AIC search so that there were more variables to experiment with.
+
+```{r}
+par(mfrow = c(1, 2))
+plot(fitted(model2), resid(model2), col = "grey")
+abline(h = 0, col = "orange", lwd = 2)
+
+qqnorm(resid(model2), col = "grey")
+qqline(resid(model2), col = "dodgerblue", lwd = 2)
+```
+
+```{r}
+bptest(model2)
+```
+
+```{r}
+shapiro.test(resid(model2))
+```
+- test for loocv-rmse
+```{r}
+calc_loocv_rmse(model1)
+```
+
+- test for $R^2$
+```{r}
+summary(model1)$adj.r.squared
+```
+
+This model provided similar results to the first model. The main issue still being the violation of the constant variance assumption.
+
+#### Model 3
+
+```{r}
+temp_model_3 = lm(Overall ~ 1, data = train_data)
+
+model3 = step(temp_model_3, scope = Overall ~ Age + Height + Weight + Weak.Foot + Skill.Moves + Crossing + HeadingAccuracy + ShortPassing + Volleys + Curve + FKAccuracy + LongPassing + Agility + Reactions + Balance + ShotPower + Jumping + Stamina + Strength  + Aggression + Vision + Penalties + Composure + GKDiving + GKHandling + GKKicking + GKPositioning + GKReflexes + Preferred.Foot + Work.Rate + Body.Type + Position, direction = 'forward', trace = 0)
+
+names(coef(model3))
+```
+
+Lastly, a forward AIC approach was used and the predictor variables above were selected. 
+
+```{r}
+bptest(model3)
+
+shapiro.test(resid(model3))
+```
+- test for loocv-rmse
+```{r}
+calc_loocv_rmse(model1)
+```
+
+- test for $R^2$
+```{r}
+summary(model1)$adj.r.squared
+```
+
+This model violated both the normality and the constant variance assumption. Based on these three model it is clear that constant variance is the greatest issue over normality, prediction accuracy, and significance of regression.
+
+### Variance Stabilization
+#### Response Transformation
+
+To get a sense for what kind of transformation should be required, scatter plots were created.
+
+- plotting
+```{r}
+plot(Overall ~ Reactions + Composure + ShortPassing  + HeadingAccuracy + ShotPower + Skill.Moves  + Agility + Strength + Height + Vision + Stamina + Weak.Foot + Aggression + Weight + Crossing + Volleys, data = file)
+```
+
+When inspecting the graphs above, many contain curve upwards similar to the "Salaries at Initech, By Seniority" graph. Therefore, it seems that a log transformation on the response is approprate.
+
+
+#### Box-Cox Transformation
+
+Box-Cox Transformations were considered, however, they did not improve the p-value of the B-P test at all. The lambda values found were between -20 and -3 and resulted in B-P p-values of around $e^{-6}$ in magnitude. Therefore, Box-Cox transformations were disregarded.
+
+
+### Results
+
+To find a model which did not violate model assumptions, many iterations of guessing and checking with transforming and removing predictor variables were done. The final model is listed below.
+
+```{r}
+modelf5 = lm(log(Overall) ~ Weight + HeadingAccuracy + ShortPassing + Reactions + log(ShotPower) + log(Stamina) + log(Vision) + log(Composure) + Strength, data = test_data)
+
+par(mfrow = c(1, 2))
+plot(fitted(modelf5), resid(modelf5), col = "grey")
+abline(h = 0, col = "orange", lwd = 2)
+
+qqnorm(resid(modelf5), col = "grey")
+qqline(resid(modelf5), col = "dodgerblue", lwd = 2)
+
+```{r}
+bptest(modelf5)
+shapiro.test(resid(mod5))
+```
+
+```{r}
+calc_loocv_rmse(mod5)
+```
+
+```{r}
+summary(mod5)$adj.r.square
+```
+
+Based on the values above, it appears that p-values for the B-P Test and Shapiro-Wilks Test are reasonably large enough to pass the assumptions. Also, the LOOCV-RMSE and Adjacent $R^2$ values were small and large enough respectively.
+
+It is worth noting that included "International.Reputation" increases the significance of the regression without violating any assumptions. However, the main goal of this study was to attempt to predict how good a player is perceived by some authority (FIFA). It seems that rating a player based on how they are rated by other people is almost cheating.
+
